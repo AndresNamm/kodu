@@ -1,7 +1,7 @@
 {
   "name": "kodu",
   "version": "0.1.0",
-  "homepage": "https://andresnamm.github.io/kodu",
+  "homepage": "https://andres.dataleaper.com",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
