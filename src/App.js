@@ -10,7 +10,7 @@ function App() {
       fontSize: '2rem',
       fontFamily: 'Arial, sans-serif'
     }}>
-      <h1>Tere, mina olen Andres! 👋</h1>
+      <h1>Tere, mina olen Andres Namm! 👋</h1>
     </div>
   );
 }
