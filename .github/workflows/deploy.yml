@@ -1,5 +1,6 @@
 name: Deploy to GitHub Pages
 
+# Trigger workflow on push to master branch or manual dispatch
 on:
   push:
     branches: [ master ]
@@ -33,6 +34,18 @@ jobs:
         
       - name: Build project
         run: npm run build
+        
+      - name: Test build output
+        run: |
+          if [ ! -d "build" ]; then
+            echo "Build directory not found!"
+            exit 1
+          fi
+          if [ ! -f "build/index.html" ]; then
+            echo "index.html not found in build directory!"
+            exit 1
+          fi
+          echo "Build verification successful"
         
       - name: Setup Pages
         uses: actions/configure-pages@v4
