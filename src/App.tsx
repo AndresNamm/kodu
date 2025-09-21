@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Welcome from './components/Welcome';
 import NumberGame from './components/NumberGame';
 import LogHackaton from './components/LogHackaton';
+import PointVisualization3D from './components/PointVisualization3D';
 
 function App(): React.ReactElement {
   return (
@@ -11,6 +12,7 @@ function App(): React.ReactElement {
         <Route path="/" element={<Welcome />} />
         <Route path="/number-game" element={<NumberGame />} />
         <Route path="/log-hackaton" element={<LogHackaton />} />
+        <Route path="/3d-visualization" element={<PointVisualization3D />} />
       </Routes>
     </Router>
   );

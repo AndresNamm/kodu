@@ -60,6 +60,15 @@ function Welcome(): React.ReactElement {
         >
           🚀 LogHackaton
         </button>
+
+        <button
+          style={buttonStyle}
+          onClick={() => navigate('/3d-visualization')}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2196F3'}
+        >
+          📊 3D Point Visualization
+        </button>
       </div>
     </div>
   );
