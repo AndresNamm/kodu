@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 
 function NumberGame(): React.ReactElement {
   const [currentNumber, setCurrentNumber] = useState<number>(1);
-  const [clickedCircles, setClickedCircles] = useState<Set<number>>(new Set());
-  const [showOtterPopup, setShowOtterPopup] = useState<boolean>(false);
   const navigate = useNavigate();
 
   const goLeft = (): void => {
@@ -14,30 +12,6 @@ function NumberGame(): React.ReactElement {
   const goRight = (): void => {
     setCurrentNumber(prev => prev < 10 ? prev + 1 : 1);
   };
-
-  const handleCircleClick = (circleIndex: number): void => {
-    if (!clickedCircles.has(circleIndex)) {
-      const newClickedCircles = new Set(clickedCircles);
-      newClickedCircles.add(circleIndex);
-      setClickedCircles(newClickedCircles);
-
-      // Check if all circles for current number are clicked
-      if (newClickedCircles.size === currentNumber) {
-        setShowOtterPopup(true);
-        // Hide popup after 3 seconds
-        setTimeout(() => {
-          setShowOtterPopup(false);
-          // Reset clicked circles for next round
-          setClickedCircles(new Set());
-        }, 3000);
-      }
-    }
-  };
-
-  // Reset clicked circles when number changes
-  useEffect(() => {
-    setClickedCircles(new Set());
-  }, [currentNumber]);
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent): void => {
@@ -56,16 +30,7 @@ function NumberGame(): React.ReactElement {
   }, []);
 
   return (
-    <>
-      <style>
-        {`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-        `}
-      </style>
-      <div style={{
+    <div style={{
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
@@ -172,17 +137,13 @@ function NumberGame(): React.ReactElement {
         {Array.from({ length: currentNumber }, (_, index) => (
           <div
             key={index}
-            onClick={() => handleCircleClick(index)}
             style={{
               width: '50px',
               height: '50px',
               borderRadius: '50%',
-              backgroundColor: clickedCircles.has(index) ? '#F44336' : '#4CAF50',
-              border: `2px solid ${clickedCircles.has(index) ? '#d32f2f' : '#45a049'}`,
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-              cursor: clickedCircles.has(index) ? 'default' : 'pointer',
-              transition: 'all 0.3s ease',
-              transform: clickedCircles.has(index) ? 'scale(0.9)' : 'scale(1)'
+              backgroundColor: '#4CAF50',
+              border: '2px solid #45a049',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}
           />
         ))}
@@ -196,60 +157,7 @@ function NumberGame(): React.ReactElement {
       }}>
         Use ← → arrow keys or tap the buttons to change numbers (1-10)
       </div>
-
-      {/* Otter Popup */}
-      {showOtterPopup && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          animation: 'fadeIn 0.3s ease-in'
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '15px',
-            textAlign: 'center',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-            maxWidth: '400px',
-            maxHeight: '500px'
-          }}>
-            <h2 style={{ 
-              margin: '0 0 20px 0', 
-              color: '#333',
-              fontSize: '1.5rem'
-            }}>
-              🎉 Congratulations! 🎉
-            </h2>
-            <img 
-              src="/otter.jpg" 
-              alt="Congratulations Otter" 
-              style={{
-                maxWidth: '100%',
-                maxHeight: '300px',
-                borderRadius: '10px',
-                objectFit: 'contain'
-              }}
-            />
-            <p style={{ 
-              margin: '15px 0 0 0', 
-              color: '#666',
-              fontSize: '1rem'
-            }}>
-              You clicked all the circles!
-            </p>
-          </div>
-        </div>
-      )}
     </div>
-    </>
   );
 }
 
