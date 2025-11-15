@@ -1,11 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const downloadCatalog: Record<string, number> = {
+  otter: 5,
+  peppa: 5,
+  stitch: 5,
+  'test-cat': 1
+};
+
+// Pre-build the list of downloadable celebration images so we can pick one instantly on win.
+const rewardImages: string[] = Object.entries(downloadCatalog).flatMap(([folder, count]) => (
+  Array.from({ length: count }, (_, index) => `/downloads/${folder}/${folder}-${String(index + 1).padStart(2, '0')}.jpg`)
+));
+
+const getRandomRewardImage = (): string => {
+  if (rewardImages.length === 0) {
+    return '/otter.jpg';
+  }
+  const randomIndex = Math.floor(Math.random() * rewardImages.length);
+  return rewardImages[randomIndex];
+};
+
+const POPUP_TIMEOUT_MS = 3000;
+const CIRCLE_SIZE = 110;
 
 function NumberGame(): React.ReactElement {
   const [currentNumber, setCurrentNumber] = useState<number>(1);
   const [clickedCircles, setClickedCircles] = useState<Set<number>>(new Set());
   const [showOtterPopup, setShowOtterPopup] = useState<boolean>(false);
+  const [rewardImage, setRewardImage] = useState<string>('/otter.jpg');
   const navigate = useNavigate();
+  const popupTimeoutRef = useRef<number | null>(null);
 
   const goLeft = (): void => {
     setCurrentNumber(prev => prev > 1 ? prev - 1 : 10);
@@ -23,13 +48,15 @@ function NumberGame(): React.ReactElement {
 
       // Check if all circles for current number are clicked
       if (newClickedCircles.size === currentNumber) {
+        if (popupTimeoutRef.current) {
+          window.clearTimeout(popupTimeoutRef.current);
+        }
+        setRewardImage(getRandomRewardImage());
         setShowOtterPopup(true);
-        // Hide popup after 3 seconds
-        setTimeout(() => {
+        popupTimeoutRef.current = window.setTimeout(() => {
           setShowOtterPopup(false);
-          // Reset clicked circles for next round
           setClickedCircles(new Set());
-        }, 3000);
+        }, POPUP_TIMEOUT_MS);
       }
     }
   };
@@ -52,6 +79,9 @@ function NumberGame(): React.ReactElement {
     
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
+      if (popupTimeoutRef.current) {
+        window.clearTimeout(popupTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -166,16 +196,16 @@ function NumberGame(): React.ReactElement {
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'center',
-        gap: '15px',
-        maxWidth: '400px'
+        gap: '25px',
+        maxWidth: '720px'
       }}>
         {Array.from({ length: currentNumber }, (_, index) => (
           <div
             key={index}
             onClick={() => handleCircleClick(index)}
             style={{
-              width: '50px',
-              height: '50px',
+              width: `${CIRCLE_SIZE}px`,
+              height: `${CIRCLE_SIZE}px`,
               borderRadius: '50%',
               backgroundColor: clickedCircles.has(index) ? '#F44336' : '#4CAF50',
               border: `2px solid ${clickedCircles.has(index) ? '#d32f2f' : '#45a049'}`,
@@ -229,8 +259,8 @@ function NumberGame(): React.ReactElement {
               🎉 Congratulations! 🎉
             </h2>
             <img 
-              src="/otter.jpg" 
-              alt="Congratulations Otter" 
+              src={rewardImage} 
+              alt="Celebration reward" 
               style={{
                 maxWidth: '100%',
                 maxHeight: '300px',

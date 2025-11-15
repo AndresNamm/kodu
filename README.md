@@ -41,6 +41,21 @@ npm run build
 npm run deploy
 ```
 
+## 🖼️ Image Downloader Script
+
+Python helpers live under `scripts/`. To use the image downloader:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python scripts/download_images.py "cute otter" --c 5
+```
+
+- Downloads land under `downloads/<keyword-slug>` by default (override with `--out <dir>`).
+- Uses Bing Images HTML search behind the scenes, so results depend on what Bing surfaces for the given keywords.
+- Use `--c`/`--count` to control how many JPGs to fetch; the script converts non-JPEG sources automatically.
+
 ## 📁 Project Structure
 
 ```
