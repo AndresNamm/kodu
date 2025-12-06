@@ -1,30 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const downloadCatalog: Record<string, number> = {
-  otter: 5,
-  peppa: 5,
-  stitch: 40,
-  mikimouse: 10,
-  fish: 10,
-};
-
-// Pre-build the list of downloadable celebration images so we can pick one instantly on win.
-const rewardImages: string[] = Object.entries(downloadCatalog).flatMap(([folder, count]) => (
-  Array.from({ length: count }, (_, index) => `/downloads/${folder}/${folder}-${String(index + 1).padStart(2, '0')}.jpg`)
-));
+// Only Stitch images for this game
+const STITCH_COUNT = 40;
+const stitchImages: string[] = Array.from({ length: STITCH_COUNT }, (_, index) => 
+  `/downloads/stitch/stitch-${String(index + 1).padStart(2, '0')}.jpg`
+);
 
 // Shuffle bag to ensure we show all images before repeating
 let availableImages: string[] = [];
 
-const getRandomRewardImage = (): string => {
-  if (rewardImages.length === 0) {
-    return '/otter.jpg';
+const getRandomStitchImage = (): string => {
+  if (stitchImages.length === 0) {
+    return '/otter.jpg'; // Fallback
   }
 
   if (availableImages.length === 0) {
     // Refill and shuffle
-    availableImages = [...rewardImages];
+    availableImages = [...stitchImages];
     // Fisher-Yates shuffle
     for (let i = availableImages.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -37,29 +30,39 @@ const getRandomRewardImage = (): string => {
 
 const POPUP_TIMEOUT_MS = 3000;
 
-function NumberGame(): React.ReactElement {
-  const [currentNumber, setCurrentNumber] = useState<number>(1);
-  const [clickedBalls, setClickedBalls] = useState<Set<number>>(new Set());
+interface ColorOption {
+  name: string;
+  hex: string;
+}
+
+const COLORS: ColorOption[] = [
+  { name: 'Red', hex: '#FF0000' },
+  { name: 'Blue', hex: '#2196F3' },
+  { name: 'Green', hex: '#4CAF50' },
+  { name: 'Yellow', hex: '#FFEB3B' },
+  { name: 'Orange', hex: '#FF9800' },
+  { name: 'Purple', hex: '#9C27B0' },
+  { name: 'Pink', hex: '#E91E63' },
+  { name: 'Black', hex: '#000000' },
+  { name: 'Brown', hex: '#795548' },
+  { name: 'White', hex: '#FFFFFF' },
+  { name: 'Gray', hex: '#9E9E9E' },
+];
+
+function ColorGame(): React.ReactElement {
+  const [currentColor, setCurrentColor] = useState<ColorOption>(COLORS[0]);
   const [showRewardPopup, setShowRewardPopup] = useState<boolean>(false);
-  const [rewardImage, setRewardImage] = useState<string>('/otter.jpg');
+  const [rewardImage, setRewardImage] = useState<string>('');
   const navigate = useNavigate();
   const popupTimeoutRef = useRef<number | null>(null);
 
-  const generateNewNumber = () => {
-    // Random number between 1 and 10
-    const nextNumber = Math.floor(Math.random() * 10) + 1;
-    setCurrentNumber(nextNumber);
-    setClickedBalls(new Set());
-  };
-
-  const handleBallClick = (index: number) => {
-    const newClicked = new Set(clickedBalls);
-    newClicked.add(index);
-    setClickedBalls(newClicked);
+  const generateNewColor = () => {
+    const nextColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    setCurrentColor(nextColor);
   };
 
   useEffect(() => {
-    generateNewNumber();
+    generateNewColor();
     return () => {
       if (popupTimeoutRef.current) {
         window.clearTimeout(popupTimeoutRef.current);
@@ -68,17 +71,17 @@ function NumberGame(): React.ReactElement {
   }, []);
 
   const handleCorrect = () => {
-    setRewardImage(getRandomRewardImage());
+    setRewardImage(getRandomStitchImage());
     setShowRewardPopup(true);
     
     popupTimeoutRef.current = window.setTimeout(() => {
       setShowRewardPopup(false);
-      generateNewNumber();
+      generateNewColor();
     }, POPUP_TIMEOUT_MS);
   };
 
   const handleWrong = () => {
-    generateNewNumber();
+    generateNewColor();
   };
 
   const buttonStyle = {
@@ -123,52 +126,20 @@ function NumberGame(): React.ReactElement {
       </button>
 
       <h1 style={{ fontSize: '3rem', marginTop: '60px', marginBottom: '20px', color: '#333' }}>
-        What number is this?
+        What color is this?
       </h1>
 
-      {/* Number Display */}
+      {/* Color Display */}
       <div style={{
-        fontSize: '12rem',
-        fontWeight: 'bold',
-        color: '#2196F3',
-        marginBottom: '30px',
-        textShadow: '2px 2px 4px rgba(0,0,0,0.1)'
-      }}>
-        {currentNumber}
-      </div>
-
-      {/* Balls Display */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: '20px',
-        maxWidth: '800px',
-        marginBottom: '40px',
-        minHeight: '80px' // Reserve space
-      }}>
-        {Array.from({ length: currentNumber }, (_, index) => (
-          <div
-            key={index}
-            onClick={() => handleBallClick(index)}
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              backgroundColor: clickedBalls.has(index) ? '#4CAF50' : '#FF9800',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-              border: '4px solid white',
-              cursor: 'pointer',
-              transition: 'background-color 0.3s, transform 0.1s',
-              animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards',
-              animationDelay: `${index * 0.05}s`
-            }}
-            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
-            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-          />
-        ))}
-      </div>
+        width: '300px',
+        height: '300px',
+        borderRadius: '50%',
+        backgroundColor: currentColor.hex,
+        border: '8px solid white',
+        boxShadow: '0 8px 16px rgba(0,0,0,0.2)',
+        marginBottom: '60px',
+        transition: 'background-color 0.3s ease'
+      }} />
 
       {/* Controls */}
       <div style={{
@@ -214,7 +185,7 @@ function NumberGame(): React.ReactElement {
         }}>
           <img 
             src={rewardImage} 
-            alt="Reward" 
+            alt="Stitch Reward" 
             style={{
               maxWidth: '90%',
               maxHeight: '90%',
@@ -240,4 +211,4 @@ function NumberGame(): React.ReactElement {
   );
 }
 
-export default NumberGame;
+export default ColorGame;

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Welcome from './components/Welcome';
 import NumberGame from './components/NumberGame';
 import LogHackaton from './components/LogHackaton';
+import ColorGame from './components/ColorGame';
 
 function App(): React.ReactElement {
   return (
@@ -10,6 +11,7 @@ function App(): React.ReactElement {
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/number-game" element={<NumberGame />} />
+        <Route path="/color-game" element={<ColorGame />} />
         <Route path="/log-hackaton" element={<LogHackaton />} />
       </Routes>
     </Router>

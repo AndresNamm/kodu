@@ -43,20 +43,29 @@ function Welcome(): React.ReactElement {
         flexDirection: 'column',
         gap: '20px'
       }}>
-        <button
+                <button
           style={buttonStyle}
           onClick={() => navigate('/number-game')}
           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2196F3'}
         >
-          🎮 Number Game
+          Number Game
         </button>
-        
+
         <button
-          style={buttonStyle}
+          style={{...buttonStyle, backgroundColor: '#4CAF50'}}
+          onClick={() => navigate('/color-game')}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#388E3C'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
+        >
+          Color Game
+        </button>
+
+        <button
+          style={{...buttonStyle, backgroundColor: '#607D8B'}}
           onClick={() => navigate('/log-hackaton')}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2196F3'}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#455A64'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#607D8B'}
         >
           🚀 LogHackaton
         </button>
