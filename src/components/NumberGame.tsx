@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 const downloadCatalog: Record<string, number> = {
   otter: 5,
   peppa: 5,
-  stitch: 5,
-  'test-cat': 1
+  stitch: 40,
+  mikimouse: 10,
+  fish: 10,
 };
 
 // Pre-build the list of downloadable celebration images so we can pick one instantly on win.
@@ -13,12 +14,25 @@ const rewardImages: string[] = Object.entries(downloadCatalog).flatMap(([folder,
   Array.from({ length: count }, (_, index) => `/downloads/${folder}/${folder}-${String(index + 1).padStart(2, '0')}.jpg`)
 ));
 
+// Shuffle bag to ensure we show all images before repeating
+let availableImages: string[] = [];
+
 const getRandomRewardImage = (): string => {
   if (rewardImages.length === 0) {
     return '/otter.jpg';
   }
-  const randomIndex = Math.floor(Math.random() * rewardImages.length);
-  return rewardImages[randomIndex];
+
+  if (availableImages.length === 0) {
+    // Refill and shuffle
+    availableImages = [...rewardImages];
+    // Fisher-Yates shuffle
+    for (let i = availableImages.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [availableImages[i], availableImages[j]] = [availableImages[j], availableImages[i]];
+    }
+  }
+
+  return availableImages.pop() as string;
 };
 
 const POPUP_TIMEOUT_MS = 3000;

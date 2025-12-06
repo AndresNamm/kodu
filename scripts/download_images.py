@@ -169,7 +169,7 @@ def main() -> int:
     print("[error] --count must be greater than zero", file=sys.stderr)
     return 1
 
-  output_dir = args.out or Path("downloads") / slugify(query)
+  output_dir = args.out or Path("public/downloads") / slugify(query)
   output_dir.mkdir(parents=True, exist_ok=True)
 
   session = requests.Session()
