@@ -37,30 +37,22 @@ const getRandomRewardImage = (): string => {
 };
 
 const POPUP_TIMEOUT_MS = 3000;
+const LETTERS = ['A', 'B', 'C', 'I', 'S', 'O'];
 
-function NumberGame(): React.ReactElement {
-  const [currentNumber, setCurrentNumber] = useState<number>(1);
-  const [clickedBalls, setClickedBalls] = useState<Set<number>>(new Set());
+function LetterGame(): React.ReactElement {
+  const [currentLetter, setCurrentLetter] = useState<string>('A');
   const [showRewardPopup, setShowRewardPopup] = useState<boolean>(false);
   const [rewardImage, setRewardImage] = useState<string>('/otter.jpg');
   const navigate = useNavigate();
   const popupTimeoutRef = useRef<number | null>(null);
 
-  const generateNewNumber = () => {
-    // Random number between 1 and 10
-    const nextNumber = currentNumber+1 > 4 ? 1 : currentNumber + 1;
-    setCurrentNumber(nextNumber);
-    setClickedBalls(new Set());
-  };
-
-  const handleBallClick = (index: number) => {
-    const newClicked = new Set(clickedBalls);
-    newClicked.add(index);
-    setClickedBalls(newClicked);
+  const generateNewLetter = () => {
+    const randomIndex = Math.floor(Math.random() * LETTERS.length);
+    setCurrentLetter(LETTERS[randomIndex]);
   };
 
   useEffect(() => {
-    generateNewNumber();
+    generateNewLetter();
     return () => {
       if (popupTimeoutRef.current) {
         window.clearTimeout(popupTimeoutRef.current);
@@ -74,12 +66,12 @@ function NumberGame(): React.ReactElement {
     
     popupTimeoutRef.current = window.setTimeout(() => {
       setShowRewardPopup(false);
-      generateNewNumber();
+      generateNewLetter();
     }, POPUP_TIMEOUT_MS);
   };
 
   const handleWrong = () => {
-    generateNewNumber();
+    generateNewLetter();
   };
 
   const buttonStyle = {
@@ -124,51 +116,18 @@ function NumberGame(): React.ReactElement {
       </button>
 
       <h1 style={{ fontSize: '3rem', marginTop: '60px', marginBottom: '20px', color: '#333' }}>
-        What number is this?
+        What letter is this?
       </h1>
 
-      {/* Number Display */}
+      {/* Letter Display */}
       <div style={{
-        fontSize: '12rem',
+        fontSize: '15rem',
         fontWeight: 'bold',
-        color: '#2196F3',
-        marginBottom: '30px',
-        textShadow: '2px 2px 4px rgba(0,0,0,0.1)'
+        color: '#9C27B0', // Purple color for letters
+        marginBottom: '60px',
+        textShadow: '4px 4px 8px rgba(0,0,0,0.2)'
       }}>
-        {currentNumber}
-      </div>
-
-      {/* Balls Display */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: '20px',
-        maxWidth: '800px',
-        marginBottom: '40px',
-        minHeight: '80px' // Reserve space
-      }}>
-        {Array.from({ length: currentNumber }, (_, index) => (
-          <div
-            key={index}
-            onClick={() => handleBallClick(index)}
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              backgroundColor: clickedBalls.has(index) ? '#4CAF50' : '#FF9800',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-              border: '4px solid white',
-              cursor: 'pointer',
-              transition: 'background-color 0.3s, transform 0.1s',
-              animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards',
-              animationDelay: `${index * 0.05}s`
-            }}
-            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
-            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-          />
-        ))}
+        {currentLetter}
       </div>
 
       {/* Controls */}
@@ -204,41 +163,65 @@ function NumberGame(): React.ReactElement {
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
+          right: 0,
+          bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.8)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           zIndex: 1000,
-          animation: 'fadeIn 0.3s'
+          animation: 'fadeIn 0.3s ease-out'
         }}>
-          <img 
-            src={rewardImage} 
-            alt="Reward" 
-            style={{
-              maxWidth: '90%',
-              maxHeight: '90%',
-              borderRadius: '12px',
-              boxShadow: '0 0 20px rgba(255,255,255,0.5)',
-              animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-            }}
-          />
+          <div style={{
+            position: 'relative',
+            maxWidth: '90%',
+            maxHeight: '90%'
+          }}>
+            <img 
+              src={rewardImage} 
+              alt="Reward" 
+              style={{
+                maxWidth: '100%',
+                maxHeight: '80vh',
+                borderRadius: '20px',
+                boxShadow: '0 0 50px rgba(255,255,255,0.2)',
+                animation: 'scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+              }} 
+            />
+            <h2 style={{
+              color: 'white',
+              textAlign: 'center',
+              fontSize: '4rem',
+              marginTop: '20px',
+              textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+              animation: 'slideUp 0.5s ease-out 0.2s backwards'
+            }}>
+              Great Job! 🎉
+            </h2>
+          </div>
         </div>
       )}
-      
+
       <style>{`
+        @keyframes popIn {
+          from { transform: scale(0); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
-        @keyframes popIn {
-          from { transform: scale(0.5); }
-          to { transform: scale(1); }
+        @keyframes scaleIn {
+          from { transform: scale(0.5); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(50px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
         }
       `}</style>
     </div>
   );
 }
 
-export default NumberGame;
+export default LetterGame;

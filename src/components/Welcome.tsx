@@ -62,13 +62,14 @@ function Welcome(): React.ReactElement {
         </button>
 
         <button
-          style={{...buttonStyle, backgroundColor: '#607D8B'}}
-          onClick={() => navigate('/log-hackaton')}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#455A64'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#607D8B'}
+          style={{...buttonStyle, backgroundColor: '#9C27B0'}}
+          onClick={() => navigate('/letter-game')}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#7B1FA2'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#9C27B0'}
         >
-          🚀 LogHackaton
+          Letter Game
         </button>
+
       </div>
     </div>
   );
