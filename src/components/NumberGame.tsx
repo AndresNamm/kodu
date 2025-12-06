@@ -47,7 +47,7 @@ function NumberGame(): React.ReactElement {
 
   const generateNewNumber = () => {
     // Random number between 1 and 10
-    const nextNumber = Math.floor(Math.random() * 10) + 1;
+    const nextNumber = Math.floor(Math.random() * 5) + 1;
     setCurrentNumber(nextNumber);
     setClickedBalls(new Set());
   };
