@@ -146,15 +146,15 @@ function NumberGame(): React.ReactElement {
         gap: '20px',
         maxWidth: '800px',
         marginBottom: '40px',
-        minHeight: '80px' // Reserve space
+        minHeight: '120px' // Reserve space
       }}>
         {Array.from({ length: currentNumber }, (_, index) => (
           <div
             key={index}
             onClick={() => handleBallClick(index)}
             style={{
-              width: '80px',
-              height: '80px',
+              width: '120px',
+              height: '120px',
               borderRadius: '50%',
               backgroundColor: clickedBalls.has(index) ? '#4CAF50' : '#FF9800',
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
