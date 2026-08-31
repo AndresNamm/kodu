@@ -77,3 +77,27 @@ kodu/
 - Create React App
 - GitHub Actions
 - GitHub Pages
+
+## Laste õppemängud
+
+Rakendus koosneb nüüd ainult uuest kuue täisekraanimängu komplektist:
+
+- numbrite tundmine;
+- plokkide liitmine ja lahutamine;
+- tähtede tundmine eestikeelse hääldusega;
+- mesilase labürint;
+- suundade õppimine eesti keeles;
+- mesilane ja lilled.
+
+Veebimängude lähtekood ja litsentsitud meedia asuvad kaustas
+`public/learning-games/`. Mängukomplekt avaneb aadressil
+`/learning-games/index.html`.
+
+Varasemad eraldiseisvad numbrite, värvide ja tähtede mängud ning nende meedia
+on eemaldatud.
+
+Mänguloogika testid:
+
+```bash
+npm run test:games
+```
