@@ -1,5 +1,26 @@
 export const NUMBER_SEQUENCE = [1, 4, 2, 8, 5, 7, 3, 9, 6];
-export const ALLOWED_LETTERS = [..."AKXSUIO"];
+export const ALLOWED_LETTERS = [..."KAUIMJOHNES"];
+export const LETTER_WORDS = [
+  "EI",
+  "HEA",
+  "ISA",
+  "JA",
+  "JAH",
+  "JOON",
+  "KAKA",
+  "KANA",
+  "KASS",
+  "MAJA",
+  "MINA",
+  "MUNA",
+  "NIMI",
+  "NINA",
+  "OMA",
+  "SAI",
+  "SAMA",
+  "SINA",
+  "UNI",
+];
 export const DIRECTION_KEYS = ["8", "2", "4", "6"];
 
 export const MAZES = [
@@ -121,13 +142,33 @@ export class AddRemoveState {
 
 export class LetterState {
   constructor(target) {
-    if (!ALLOWED_LETTERS.includes(target)) throw new Error("Invalid letter.");
+    if (
+      typeof target !== "string"
+      || target.length < 1
+      || target.length > 4
+      || [...target].some((letter) => !ALLOWED_LETTERS.includes(letter))
+    ) {
+      throw new Error("Invalid letter prompt.");
+    }
     this.target = target;
+    this.position = 0;
+  }
+
+  get complete() {
+    return this.position >= this.target.length;
+  }
+
+  get typed() {
+    return this.target.slice(0, this.position);
   }
 
   input(key) {
     if (key === "5") return "exit";
-    return key?.toUpperCase() === this.target ? "correct" : "wrong";
+    const letter = key?.toUpperCase();
+    if (!ALLOWED_LETTERS.includes(letter)) return "wrong";
+    if (letter !== this.target[this.position]) return "wrong";
+    this.position += 1;
+    return this.complete ? "correct" : "changed";
   }
 }
 

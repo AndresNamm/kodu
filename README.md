@@ -84,7 +84,7 @@ Rakendus koosneb nüüd ainult uuest kuue täisekraanimängu komplektist:
 
 - numbrite tundmine;
 - plokkide liitmine ja lahutamine;
-- tähtede tundmine eestikeelse hääldusega;
+- tähtede ja kuni neljatäheliste sõnade õppimine eestikeelse hääldusega;
 - mesilase labürint;
 - suundade õppimine eesti keeles;
 - mesilane ja lilled.

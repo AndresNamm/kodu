@@ -6,6 +6,7 @@ import {
   ALLOWED_LETTERS,
   BeeFlowerState,
   DirectionState,
+  LETTER_WORDS,
   LetterState,
   MAZES,
   MazeState,
@@ -28,10 +29,30 @@ test('add and remove game completes automatically', () => {
 });
 
 test('letter game only supports the beginner set', () => {
+  assert.deepEqual(ALLOWED_LETTERS, ['K', 'A', 'U', 'I', 'M', 'J', 'O', 'H', 'N', 'E', 'S']);
   for (const letter of ALLOWED_LETTERS) {
     assert.equal(new LetterState(letter).input(letter.toLowerCase()), 'correct');
   }
   assert.throws(() => new LetterState('B'));
+});
+
+test('letter game accepts words letter by letter', () => {
+  const state = new LetterState('KAKA');
+  assert.equal(state.input('k'), 'changed');
+  assert.equal(state.typed, 'K');
+  assert.equal(state.input('x'), 'wrong');
+  assert.equal(state.typed, 'K');
+  assert.equal(state.input('a'), 'changed');
+  assert.equal(state.input('k'), 'changed');
+  assert.equal(state.input('a'), 'correct');
+  assert.equal(state.complete, true);
+});
+
+test('all learning words use allowed letters and are at most four letters', () => {
+  for (const word of LETTER_WORDS) {
+    assert.ok(word.length >= 2 && word.length <= 4);
+    assert.ok([...word].every((letter) => ALLOWED_LETTERS.includes(letter)));
+  }
 });
 
 test('arrow keys map to number directions', () => {

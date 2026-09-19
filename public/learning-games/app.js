@@ -4,6 +4,7 @@ import {
   BeeFlowerState,
   DIRECTION_KEYS,
   DirectionState,
+  LETTER_WORDS,
   LetterState,
   MAZES,
   MazeState,
@@ -59,9 +60,6 @@ const IMAGE_NAMES = [
   "dogs_02.jpg",
   "dogs_03.jpg",
   "dogs_04.jpg",
-  "dogs_05.jpg",
-  "dogs_06.jpg",
-  "dogs_07.jpg",
   "dogs_08.jpg",
   "pirates_01.jpg",
   "pirates_02.jpg",
@@ -94,8 +92,8 @@ const GAME_DEFINITIONS = [
   },
   {
     id: "letters",
-    title: "3. Tähtede tundmine",
-    description: "Vajuta näidatud tähte ja kuula eestikeelset hääldust.",
+    title: "3. Tähed ja sõnad",
+    description: "Kirjuta kordamööda näidatud täht või kuni neljatäheline sõna.",
     color: "#ff8a65",
   },
   {
@@ -149,6 +147,7 @@ window.addEventListener(
     if (!activeGame) return;
     event.preventDefault();
     event.stopPropagation();
+    if (activeGame.id === "letters" && event.repeat) return;
     handleKey(event.key);
   },
   { capture: true },
@@ -219,7 +218,7 @@ function createGame(id) {
   }
   if (id === "letters") {
     const target = ALLOWED_LETTERS[Math.floor(Math.random() * ALLOWED_LETTERS.length)];
-    return { id, state: new LetterState(target) };
+    return { id, promptType: "letter", state: new LetterState(target) };
   }
   if (id === "maze") {
     return { id, mazeIndex: 0, state: new MazeState(MAZES[0]) };
@@ -262,7 +261,13 @@ function handleKey(rawKey) {
   }
   if (reward) return;
 
-  const result = activeGame.state.input(rawKey.length === 1 ? rawKey : rawKey);
+  const result = activeGame.state.input(rawKey);
+  if (
+    activeGame.id === "letters"
+    && (result === "changed" || result === "correct")
+  ) {
+    playFile(`assets/speech/et/${rawKey.toUpperCase()}.wav`);
+  }
   if (result === "exit") {
     returnToMenu();
   } else if (result === "correct") {
@@ -277,10 +282,12 @@ function handleKey(rawKey) {
 function handleCorrectAnswer() {
   const game = activeGame;
   if (game.id === "letters") {
-    playFile(`assets/speech/et/${game.state.target}.wav`);
-    setTimeout(playGoodSound, 650);
+    setTimeout(playGoodSound, 350);
     showReward(game.state.target, () => {
-      const next = randomDifferent(ALLOWED_LETTERS, game.state.target);
+      const nextPromptType = game.promptType === "letter" ? "word" : "letter";
+      const choices = nextPromptType === "word" ? LETTER_WORDS : ALLOWED_LETTERS;
+      const next = randomDifferent(choices, game.state.target);
+      game.promptType = nextPromptType;
       game.state = new LetterState(next);
     });
     return;
@@ -492,8 +499,48 @@ function drawBlocks(count, width, height, verticalOffset = 0) {
 }
 
 function drawLetterGame(width, height) {
-  const size = Math.min(width, height) * 0.56;
-  drawCard(width / 2, height * 0.5, size, "#ff8a65", activeGame.state.target);
+  const { state, promptType } = activeGame;
+  if (promptType === "letter") {
+    text("VAJUTA TÄHTE", width / 2, height * 0.13, Math.min(width, height) * 0.07, "#263238");
+    const size = Math.min(width, height) * 0.56;
+    drawCard(width / 2, height * 0.52, size, "#ff8a65", state.target);
+    return;
+  }
+
+  text("KIRJUTA SÕNA", width / 2, height * 0.14, Math.min(width, height) * 0.075, "#263238");
+  const letters = [...state.target];
+  const gap = Math.min(width, height) * 0.025;
+  const tileSize = Math.min(
+    Math.min(width, height) * 0.25,
+    (width * 0.82 - gap * (letters.length - 1)) / letters.length,
+  );
+  const totalWidth = letters.length * tileSize + (letters.length - 1) * gap;
+  const left = (width - totalWidth) / 2;
+  const top = height * 0.36;
+
+  letters.forEach((letter, index) => {
+    const isTyped = index < state.position;
+    const isCurrent = index === state.position;
+    const color = isTyped ? "#66bb6a" : isCurrent ? "#ff8a65" : "#fff";
+    const textColor = isTyped || isCurrent ? "#fff" : "#90a4ae";
+    roundedRect(
+      left + index * (tileSize + gap),
+      top,
+      tileSize,
+      tileSize,
+      tileSize * 0.12,
+      color,
+      "#fff",
+      Math.max(5, tileSize * 0.045),
+    );
+    text(
+      letter,
+      left + index * (tileSize + gap) + tileSize / 2,
+      top + tileSize / 2,
+      tileSize * 0.62,
+      textColor,
+    );
+  });
 }
 
 function drawMazeGame(width, height) {
