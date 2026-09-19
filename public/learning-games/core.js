@@ -1,11 +1,41 @@
 export const NUMBER_SEQUENCE = [1, 4, 2, 8, 5, 7, 3, 9, 6];
 export const ALLOWED_LETTERS = [..."KAUIMJOHNES"];
-export const LETTER_WORDS = [
+export const READING_SYLLABLES = [
+  "JA",
+  "JO",
+  "KA",
+  "KE",
+  "KI",
+  "KO",
+  "KU",
+  "MA",
+  "ME",
+  "MI",
+  "MO",
+  "MU",
+  "NA",
+  "NE",
+  "NI",
+  "NO",
+  "NU",
+  "SA",
+  "SE",
+  "SI",
+  "SO",
+  "SU",
+];
+export const SHORT_READING_WORDS = [
   "EI",
   "HEA",
   "ISA",
   "JA",
   "JAH",
+  "MA",
+  "OMA",
+  "SAI",
+  "UNI",
+];
+export const LONG_READING_WORDS = [
   "JOON",
   "KAKA",
   "KANA",
@@ -15,12 +45,11 @@ export const LETTER_WORDS = [
   "MUNA",
   "NIMI",
   "NINA",
-  "OMA",
-  "SAI",
   "SAMA",
   "SINA",
-  "UNI",
 ];
+export const LETTER_WORDS = [...SHORT_READING_WORDS, ...LONG_READING_WORDS];
+export const PICTURE_WORDS = ["KANA", "KASS", "MAJA", "MUNA", "NINA"];
 export const DIRECTION_KEYS = ["8", "2", "4", "6"];
 
 export const MAZES = [
@@ -93,6 +122,88 @@ export function normalizeDirectionKey(key) {
   }[key] ?? key;
 }
 
+function randomItem(values, random = Math.random) {
+  return values[Math.floor(random() * values.length)];
+}
+
+function pickReadingValue(values, mistakes, previous, random = Math.random) {
+  const weakLetter = Object.entries(mistakes)
+    .filter(([letter, count]) => ALLOWED_LETTERS.includes(letter) && count > 0)
+    .sort((first, second) => second[1] - first[1])[0]?.[0];
+  const weakChoices = weakLetter
+    ? values.filter((value) => value.includes(weakLetter) && value !== previous)
+    : [];
+  const regularChoices = values.filter((value) => value !== previous);
+  if (weakChoices.length > 0 && random() < 0.5) {
+    return randomItem(weakChoices, random);
+  }
+  return randomItem(regularChoices.length > 0 ? regularChoices : values, random);
+}
+
+function shuffleWithRandom(values, random = Math.random) {
+  const result = [...values];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const other = Math.floor(random() * (index + 1));
+    [result[index], result[other]] = [result[other], result[index]];
+  }
+  return result;
+}
+
+export function createReadingPrompt(
+  level,
+  mistakes = {},
+  previous = "",
+  random = Math.random,
+) {
+  if (level === 1) {
+    return {
+      type: "letter",
+      target: pickReadingValue(ALLOWED_LETTERS, mistakes, previous, random),
+    };
+  }
+  if (level === 2) {
+    return {
+      type: "syllable",
+      target: pickReadingValue(READING_SYLLABLES, mistakes, previous, random),
+    };
+  }
+  if (level === 3) {
+    return {
+      type: "word",
+      target: pickReadingValue(SHORT_READING_WORDS, mistakes, previous, random),
+    };
+  }
+  if (level === 4) {
+    return {
+      type: "word",
+      target: pickReadingValue(LONG_READING_WORDS, mistakes, previous, random),
+    };
+  }
+  if (level === 5) {
+    const target = pickReadingValue(LONG_READING_WORDS, mistakes, previous, random);
+    const hiddenIndex = Math.floor(random() * target.length);
+    return {
+      type: "missing",
+      target,
+      hiddenIndex,
+      answer: target[hiddenIndex],
+    };
+  }
+
+  const target = pickReadingValue(PICTURE_WORDS, mistakes, previous, random);
+  const distractors = shuffleWithRandom(
+    PICTURE_WORDS.filter((word) => word !== target),
+    random,
+  ).slice(0, 2);
+  const choices = shuffleWithRandom([target, ...distractors], random);
+  return {
+    type: "picture",
+    target,
+    choices,
+    correctIndex: choices.indexOf(target),
+  };
+}
+
 export class NumberGameState {
   constructor(sequence = NUMBER_SEQUENCE) {
     this.sequence = [...sequence];
@@ -140,35 +251,101 @@ export class AddRemoveState {
   }
 }
 
-export class LetterState {
-  constructor(target) {
-    if (
-      typeof target !== "string"
-      || target.length < 1
-      || target.length > 4
-      || [...target].some((letter) => !ALLOWED_LETTERS.includes(letter))
-    ) {
-      throw new Error("Invalid letter prompt.");
-    }
-    this.target = target;
+export class ReadingGameState {
+  constructor({
+    level = 1,
+    correctInLevel = 0,
+    mistakes = {},
+    prompt,
+    random = Math.random,
+  } = {}) {
+    this.level = Math.min(6, Math.max(1, level));
+    this.correctInLevel = Math.min(4, Math.max(0, correctInLevel));
+    this.mistakes = { ...mistakes };
+    this.random = random;
+    this.prompt = prompt ?? createReadingPrompt(
+      this.level,
+      this.mistakes,
+      "",
+      this.random,
+    );
     this.position = 0;
   }
 
   get complete() {
-    return this.position >= this.target.length;
+    return this.prompt.type === "picture"
+      ? false
+      : this.position >= this.prompt.target.length;
   }
 
   get typed() {
-    return this.target.slice(0, this.position);
+    return this.prompt.target.slice(0, this.position);
+  }
+
+  get expected() {
+    if (this.prompt.type === "picture") {
+      return String(this.prompt.correctIndex + 1);
+    }
+    if (this.prompt.type === "missing") {
+      return this.prompt.answer;
+    }
+    return this.prompt.target[this.position];
+  }
+
+  recordMistake() {
+    const key = this.expected ?? this.prompt.target;
+    this.mistakes[key] = (this.mistakes[key] ?? 0) + 1;
   }
 
   input(key) {
     if (key === "5") return "exit";
+    if (this.prompt.type === "picture") {
+      if (!["1", "2", "3"].includes(key)) {
+        this.recordMistake();
+        return "wrong";
+      }
+      if (Number(key) - 1 !== this.prompt.correctIndex) {
+        this.recordMistake();
+        return "wrong";
+      }
+      return "correct";
+    }
+
     const letter = key?.toUpperCase();
-    if (!ALLOWED_LETTERS.includes(letter)) return "wrong";
-    if (letter !== this.target[this.position]) return "wrong";
+    if (!ALLOWED_LETTERS.includes(letter) || letter !== this.expected) {
+      this.recordMistake();
+      return "wrong";
+    }
+    if (this.prompt.type === "missing") {
+      this.position = this.prompt.target.length;
+      return "correct";
+    }
     this.position += 1;
     return this.complete ? "correct" : "changed";
+  }
+
+  advance() {
+    const previous = this.prompt.target;
+    this.correctInLevel += 1;
+    if (this.correctInLevel >= 5) {
+      this.correctInLevel = 0;
+      this.level = Math.min(6, this.level + 1);
+    }
+    this.prompt = createReadingPrompt(
+      this.level,
+      this.mistakes,
+      previous,
+      this.random,
+    );
+    this.position = 0;
+  }
+
+  progress() {
+    return {
+      level: this.level,
+      correctInLevel: this.correctInLevel,
+      mistakes: this.mistakes,
+    };
   }
 }
 

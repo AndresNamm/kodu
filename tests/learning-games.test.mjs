@@ -5,12 +5,15 @@ import {
   AddRemoveState,
   ALLOWED_LETTERS,
   BeeFlowerState,
+  createReadingPrompt,
   DirectionState,
   LETTER_WORDS,
-  LetterState,
   MAZES,
   MazeState,
   NumberGameState,
+  PICTURE_WORDS,
+  ReadingGameState,
+  READING_SYLLABLES,
   normalizeDirectionKey
 } from '../public/learning-games/core.js';
 
@@ -28,16 +31,21 @@ test('add and remove game completes automatically', () => {
   assert.equal(new AddRemoveState(6, 5).input('2'), 'correct');
 });
 
-test('letter game only supports the beginner set', () => {
+test('reading game only supports the beginner letter set', () => {
   assert.deepEqual(ALLOWED_LETTERS, ['K', 'A', 'U', 'I', 'M', 'J', 'O', 'H', 'N', 'E', 'S']);
   for (const letter of ALLOWED_LETTERS) {
-    assert.equal(new LetterState(letter).input(letter.toLowerCase()), 'correct');
+    const state = new ReadingGameState({
+      prompt: { type: 'letter', target: letter }
+    });
+    assert.equal(state.input(letter.toLowerCase()), 'correct');
   }
-  assert.throws(() => new LetterState('B'));
 });
 
-test('letter game accepts words letter by letter', () => {
-  const state = new LetterState('KAKA');
+test('reading game accepts words letter by letter', () => {
+  const state = new ReadingGameState({
+    level: 4,
+    prompt: { type: 'word', target: 'KAKA' }
+  });
   assert.equal(state.input('k'), 'changed');
   assert.equal(state.typed, 'K');
   assert.equal(state.input('x'), 'wrong');
@@ -49,10 +57,60 @@ test('letter game accepts words letter by letter', () => {
 });
 
 test('all learning words use allowed letters and are at most four letters', () => {
-  for (const word of LETTER_WORDS) {
+  for (const word of [...READING_SYLLABLES, ...LETTER_WORDS]) {
     assert.ok(word.length >= 2 && word.length <= 4);
     assert.ok([...word].every((letter) => ALLOWED_LETTERS.includes(letter)));
   }
+});
+
+test('reading game advances a level after five correct prompts', () => {
+  const state = new ReadingGameState({
+    level: 1,
+    correctInLevel: 4,
+    prompt: { type: 'letter', target: 'A' },
+    random: () => 0
+  });
+  assert.equal(state.input('a'), 'correct');
+  state.advance();
+  assert.equal(state.level, 2);
+  assert.equal(state.correctInLevel, 0);
+  assert.equal(state.prompt.type, 'syllable');
+});
+
+test('missing-letter prompt accepts only the hidden letter', () => {
+  const state = new ReadingGameState({
+    level: 5,
+    prompt: {
+      type: 'missing',
+      target: 'KASS',
+      hiddenIndex: 1,
+      answer: 'A'
+    }
+  });
+  assert.equal(state.input('s'), 'wrong');
+  assert.equal(state.input('a'), 'correct');
+});
+
+test('picture prompt accepts only the matching numbered picture', () => {
+  const state = new ReadingGameState({
+    level: 6,
+    prompt: {
+      type: 'picture',
+      target: 'KASS',
+      choices: ['MAJA', 'KASS', 'MUNA'],
+      correctIndex: 1
+    }
+  });
+  assert.equal(state.input('1'), 'wrong');
+  assert.equal(state.input('2'), 'correct');
+});
+
+test('picture prompts contain three distinct supported picture words', () => {
+  const prompt = createReadingPrompt(6, {}, '', () => 0.25);
+  assert.equal(prompt.type, 'picture');
+  assert.equal(new Set(prompt.choices).size, 3);
+  assert.ok(prompt.choices.every((word) => PICTURE_WORDS.includes(word)));
+  assert.equal(prompt.choices[prompt.correctIndex], prompt.target);
 });
 
 test('arrow keys map to number directions', () => {

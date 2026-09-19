@@ -1,14 +1,12 @@
 import {
   AddRemoveState,
-  ALLOWED_LETTERS,
   BeeFlowerState,
   DIRECTION_KEYS,
   DirectionState,
-  LETTER_WORDS,
-  LetterState,
   MAZES,
   MazeState,
   NumberGameState,
+  ReadingGameState,
   randomDifferent,
   randomPair,
 } from "./core.js";
@@ -77,6 +75,17 @@ const DIRECTION_INFO = {
   6: { word: "PAREMALE", speech: "direction_right.wav", color: "#26a69a" },
 };
 
+const READING_STORAGE_KEY = "kodu-reading-progress-v1";
+const READING_PHONEME_INTERVAL_MS = 1400;
+const READING_LEVEL_NAMES = {
+  1: "TÄHT",
+  2: "SILP",
+  3: "LÜHIKE SÕNA",
+  4: "SÕNA",
+  5: "PUUDUV TÄHT",
+  6: "LEIA PILT",
+};
+
 const GAME_DEFINITIONS = [
   {
     id: "numbers",
@@ -92,8 +101,8 @@ const GAME_DEFINITIONS = [
   },
   {
     id: "letters",
-    title: "3. Tähed ja sõnad",
-    description: "Kirjuta kordamööda näidatud täht või kuni neljatäheline sõna.",
+    title: "3. Lugema õppimine",
+    description: "Õpi häälikuid, silpe ja sõnu ning leia puuduv täht või õige pilt.",
     color: "#ff8a65",
   },
   {
@@ -128,6 +137,9 @@ let rewardTimer = null;
 let wrongFlash = false;
 let wrongTimer = null;
 let audioContext = null;
+let readingTimers = [];
+let activeSpeechAudio = null;
+let resolveActiveSpeech = null;
 let imageDeck = shuffle(IMAGE_NAMES.map((name) => `assets/images/${name}`));
 let imagePosition = 0;
 
@@ -191,6 +203,8 @@ function resizeCanvas() {
 async function startGame(id) {
   clearTimeout(rewardTimer);
   clearTimeout(wrongTimer);
+  clearReadingTimers();
+  stopSpeech();
   reward = null;
   wrongFlash = false;
   activeGame = createGame(id);
@@ -206,6 +220,9 @@ async function startGame(id) {
   if (id === "directions") {
     setTimeout(() => speakDirection(activeGame.state.target), 300);
   }
+  if (id === "letters") {
+    scheduleReadingPrompt(activeGame);
+  }
 }
 
 function createGame(id) {
@@ -217,8 +234,11 @@ function createGame(id) {
     return { id, state: new AddRemoveState(count, target) };
   }
   if (id === "letters") {
-    const target = ALLOWED_LETTERS[Math.floor(Math.random() * ALLOWED_LETTERS.length)];
-    return { id, promptType: "letter", state: new LetterState(target) };
+    return {
+      id,
+      readingHighlight: -1,
+      state: new ReadingGameState(loadReadingProgress()),
+    };
   }
   if (id === "maze") {
     return { id, mazeIndex: 0, state: new MazeState(MAZES[0]) };
@@ -238,6 +258,8 @@ function createGame(id) {
 async function returnToMenu() {
   clearTimeout(rewardTimer);
   clearTimeout(wrongTimer);
+  clearReadingTimers();
+  stopSpeech();
   reward = null;
   activeGame = null;
   gameScreen.hidden = true;
@@ -260,13 +282,25 @@ function handleKey(rawKey) {
     return;
   }
   if (reward) return;
+  if (activeGame.id === "letters") {
+    clearReadingTimers();
+    stopSpeech();
+    activeGame.readingHighlight = -1;
+  }
 
+  const readingGame = activeGame.id === "letters" ? activeGame : null;
+  const expectedBeforeInput = readingGame?.state.expected;
+  const promptBeforeInput = readingGame?.state.prompt;
   const result = activeGame.state.input(rawKey);
   if (
     activeGame.id === "letters"
-    && (result === "changed" || result === "correct")
+    && result === "changed"
+    && activeGame.state.prompt.type !== "picture"
   ) {
-    playFile(`assets/speech/et/${rawKey.toUpperCase()}.wav`);
+    playReadingPhoneme(rawKey.toUpperCase());
+  }
+  if (activeGame.id === "letters") {
+    saveReadingProgress(activeGame.state);
   }
   if (result === "exit") {
     returnToMenu();
@@ -276,20 +310,36 @@ function handleKey(rawKey) {
     render();
   } else {
     showWrong();
+    if (readingGame && expectedBeforeInput && promptBeforeInput) {
+      readingTimers.push(setTimeout(() => {
+        if (activeGame !== readingGame || reward) return;
+        if (promptBeforeInput.type === "picture") {
+          playReadingUnit(promptBeforeInput.target);
+        } else {
+          playReadingPhoneme(expectedBeforeInput);
+        }
+      }, 260));
+    }
   }
 }
 
 function handleCorrectAnswer() {
   const game = activeGame;
   if (game.id === "letters") {
-    setTimeout(playGoodSound, 350);
-    showReward(game.state.target, () => {
-      const nextPromptType = game.promptType === "letter" ? "word" : "letter";
-      const choices = nextPromptType === "word" ? LETTER_WORDS : ALLOWED_LETTERS;
-      const next = randomDifferent(choices, game.state.target);
-      game.promptType = nextPromptType;
-      game.state = new LetterState(next);
+    clearReadingTimers();
+    const completedPrompt = game.state.prompt;
+    const completedTarget = completedPrompt.target;
+    const finalLetter = completedPrompt.type === "picture"
+      ? null
+      : completedPrompt.type === "missing"
+        ? completedPrompt.answer
+        : completedTarget[completedTarget.length - 1];
+    game.state.advance();
+    saveReadingProgress(game.state);
+    showReward(completedTarget, () => {
+      scheduleReadingPrompt(game);
     });
+    playReadingSuccess(game, completedPrompt, finalLetter);
     return;
   }
 
@@ -398,14 +448,135 @@ function playWrongSound() {
   playTone(135, 0.25, 0.16, 0.08);
 }
 
+function stopSpeech() {
+  if (activeSpeechAudio) {
+    activeSpeechAudio.pause();
+    activeSpeechAudio.currentTime = 0;
+    activeSpeechAudio = null;
+  }
+  if (resolveActiveSpeech) {
+    resolveActiveSpeech(false);
+    resolveActiveSpeech = null;
+  }
+}
+
 function playFile(path) {
+  stopSpeech();
   const audio = new Audio(path);
   audio.volume = 0.9;
-  audio.play().catch(() => {});
+  activeSpeechAudio = audio;
+  return new Promise((resolve) => {
+    let finished = false;
+    const finish = (played) => {
+      if (finished) return;
+      finished = true;
+      if (activeSpeechAudio === audio) {
+        activeSpeechAudio = null;
+        resolveActiveSpeech = null;
+      }
+      resolve(played);
+    };
+    resolveActiveSpeech = finish;
+    audio.addEventListener("ended", () => finish(true), { once: true });
+    audio.addEventListener("error", () => finish(false), { once: true });
+    audio.play().catch(() => finish(false));
+  });
 }
 
 function speakDirection(key) {
   playFile(`assets/speech/et/${DIRECTION_INFO[key].speech}`);
+}
+
+function clearReadingTimers() {
+  readingTimers.forEach((timer) => clearTimeout(timer));
+  readingTimers = [];
+}
+
+function readingSoundPath(value, phoneme = false) {
+  const prefix = phoneme ? "phoneme_" : "";
+  return `assets/speech/reading/${prefix}${value.toLowerCase()}.wav`;
+}
+
+function playReadingUnit(value) {
+  return playFile(readingSoundPath(value));
+}
+
+function playReadingPhoneme(letter) {
+  return playFile(readingSoundPath(letter, true));
+}
+
+async function playReadingSuccess(game, prompt, finalLetter) {
+  if (finalLetter) {
+    await playReadingPhoneme(finalLetter);
+  }
+  if (activeGame !== game || !reward) return;
+  if (prompt.type === "picture" || prompt.target.length > 1) {
+    await playReadingUnit(prompt.target);
+  }
+  if (activeGame !== game || !reward) return;
+  playGoodSound();
+}
+
+function scheduleReadingPrompt(game) {
+  clearReadingTimers();
+  if (!game || game.id !== "letters") return;
+  const { prompt } = game.state;
+  game.readingHighlight = -1;
+  if (prompt.type === "picture" || prompt.type === "missing") {
+    readingTimers.push(setTimeout(() => playReadingUnit(prompt.target), 350));
+    return;
+  }
+  if (prompt.type === "letter") {
+    readingTimers.push(setTimeout(() => {
+      if (!activeGame || activeGame !== game || reward) return;
+      game.readingHighlight = 0;
+      render();
+      playReadingPhoneme(prompt.target);
+    }, 350));
+    readingTimers.push(setTimeout(() => {
+      if (!activeGame || activeGame !== game || reward) return;
+      game.readingHighlight = -1;
+      render();
+    }, 1600));
+    return;
+  }
+  [...prompt.target].forEach((letter, index) => {
+    readingTimers.push(setTimeout(() => {
+      if (!activeGame || activeGame !== game || reward) return;
+      game.readingHighlight = index;
+      render();
+      playReadingPhoneme(letter);
+    }, 350 + index * READING_PHONEME_INTERVAL_MS));
+  });
+  readingTimers.push(setTimeout(() => {
+    if (!activeGame || activeGame !== game || reward) return;
+    game.readingHighlight = -1;
+    render();
+    playReadingUnit(prompt.target);
+  }, 450 + prompt.target.length * READING_PHONEME_INTERVAL_MS));
+}
+
+function loadReadingProgress() {
+  try {
+    const value = JSON.parse(localStorage.getItem(READING_STORAGE_KEY) ?? "{}");
+    return {
+      level: Number(value.level) || 1,
+      correctInLevel: Number(value.correctInLevel) || 0,
+      mistakes: typeof value.mistakes === "object" && value.mistakes
+        ? value.mistakes
+        : {},
+    };
+  } catch {
+    return {};
+  }
+}
+
+function saveReadingProgress(state) {
+  try {
+    localStorage.setItem(READING_STORAGE_KEY, JSON.stringify(state.progress()));
+  } catch {
+    // Progress persistence is optional when browser storage is unavailable.
+  }
 }
 
 function placeFlower(state) {
@@ -499,16 +670,29 @@ function drawBlocks(count, width, height, verticalOffset = 0) {
 }
 
 function drawLetterGame(width, height) {
-  const { state, promptType } = activeGame;
-  if (promptType === "letter") {
-    text("VAJUTA TÄHTE", width / 2, height * 0.13, Math.min(width, height) * 0.07, "#263238");
+  const { state, readingHighlight } = activeGame;
+  const { prompt } = state;
+  drawReadingProgress(width, height, state);
+
+  if (prompt.type === "letter") {
+    text("VAJUTA TÄHTE", width / 2, height * 0.2, Math.min(width, height) * 0.065, "#263238");
     const size = Math.min(width, height) * 0.56;
-    drawCard(width / 2, height * 0.52, size, "#ff8a65", state.target);
+    drawCard(width / 2, height * 0.57, size, "#ff8a65", prompt.target);
     return;
   }
 
-  text("KIRJUTA SÕNA", width / 2, height * 0.14, Math.min(width, height) * 0.075, "#263238");
-  const letters = [...state.target];
+  if (prompt.type === "picture") {
+    drawPictureReadingGame(width, height, prompt);
+    return;
+  }
+
+  const heading = prompt.type === "syllable"
+    ? "KIRJUTA SILP"
+    : prompt.type === "missing"
+      ? "LEIA PUUDUV TÄHT"
+      : "KIRJUTA SÕNA";
+  text(heading, width / 2, height * 0.2, Math.min(width, height) * 0.065, "#263238");
+  const letters = [...prompt.target];
   const gap = Math.min(width, height) * 0.025;
   const tileSize = Math.min(
     Math.min(width, height) * 0.25,
@@ -516,13 +700,21 @@ function drawLetterGame(width, height) {
   );
   const totalWidth = letters.length * tileSize + (letters.length - 1) * gap;
   const left = (width - totalWidth) / 2;
-  const top = height * 0.36;
+  const top = height * 0.4;
 
   letters.forEach((letter, index) => {
-    const isTyped = index < state.position;
-    const isCurrent = index === state.position;
-    const color = isTyped ? "#66bb6a" : isCurrent ? "#ff8a65" : "#fff";
-    const textColor = isTyped || isCurrent ? "#fff" : "#90a4ae";
+    const isMissing = prompt.type === "missing" && index === prompt.hiddenIndex;
+    const isTyped = prompt.type !== "missing" && index < state.position;
+    const isCurrent = prompt.type !== "missing" && index === state.position;
+    const isReading = readingHighlight === index;
+    const color = isTyped
+      ? "#66bb6a"
+      : isMissing || isCurrent
+        ? "#ff8a65"
+        : isReading
+          ? "#42a5f5"
+          : "#fff";
+    const textColor = isTyped || isCurrent || isReading ? "#fff" : "#455a64";
     roundedRect(
       left + index * (tileSize + gap),
       top,
@@ -534,12 +726,144 @@ function drawLetterGame(width, height) {
       Math.max(5, tileSize * 0.045),
     );
     text(
-      letter,
+      isMissing ? "?" : letter,
       left + index * (tileSize + gap) + tileSize / 2,
       top + tileSize / 2,
       tileSize * 0.62,
       textColor,
     );
+  });
+}
+
+function drawReadingProgress(width, height, state) {
+  text(
+    `TASE ${state.level}: ${READING_LEVEL_NAMES[state.level]}`,
+    width / 2,
+    height * 0.07,
+    Math.min(width, height) * 0.038,
+    "#263238",
+  );
+  const radius = Math.min(width, height) * 0.014;
+  const gap = radius * 2.8;
+  const left = width / 2 - gap * 2;
+  for (let index = 0; index < 5; index += 1) {
+    circle(
+      left + index * gap,
+      height * 0.125,
+      radius,
+      index < state.correctInLevel ? "#66bb6a" : "#fff",
+      "#2e7d32",
+      2,
+    );
+  }
+}
+
+function drawPictureReadingGame(width, height, prompt) {
+  text("LEIA SÕNA PILT", width / 2, height * 0.2, Math.min(width, height) * 0.065, "#263238");
+  text(prompt.target, width / 2, height * 0.3, Math.min(width, height) * 0.085, "#263238");
+  const cardSize = Math.min(width * 0.26, height * 0.38);
+  const gap = width * 0.035;
+  const totalWidth = cardSize * 3 + gap * 2;
+  const left = (width - totalWidth) / 2;
+  prompt.choices.forEach((word, index) => {
+    const x = left + index * (cardSize + gap);
+    roundedRect(
+      x,
+      height * 0.4,
+      cardSize,
+      cardSize,
+      cardSize * 0.1,
+      "#fff",
+      "#ff8a65",
+      Math.max(5, cardSize * 0.035),
+    );
+    drawReadingPicture(
+      word,
+      x + cardSize / 2,
+      height * 0.4 + cardSize * 0.48,
+      cardSize * 0.56,
+    );
+    drawBadge(
+      x + cardSize / 2,
+      height * 0.4 + cardSize * 0.88,
+      cardSize * 0.22,
+      index + 1,
+    );
+  });
+}
+
+function drawReadingPicture(word, x, y, size) {
+  if (word === "MAJA") {
+    context.fillStyle = "#ef5350";
+    context.beginPath();
+    context.moveTo(x, y - size * 0.48);
+    context.lineTo(x - size * 0.48, y - size * 0.05);
+    context.lineTo(x + size * 0.48, y - size * 0.05);
+    context.closePath();
+    context.fill();
+    roundedRect(x - size * 0.34, y - size * 0.05, size * 0.68, size * 0.5, size * 0.04, "#fff176", "#fff", 3);
+    roundedRect(x - size * 0.09, y + size * 0.16, size * 0.18, size * 0.29, size * 0.02, "#8d6e63");
+    return;
+  }
+  if (word === "MUNA") {
+    context.beginPath();
+    context.ellipse(x, y, size * 0.31, size * 0.45, 0, 0, Math.PI * 2);
+    context.fillStyle = "#fffde7";
+    context.fill();
+    context.strokeStyle = "#ffca28";
+    context.lineWidth = 5;
+    context.stroke();
+    return;
+  }
+  if (word === "NINA") {
+    circle(x, y, size * 0.44, "#ffccbc", "#fff", 4);
+    circle(x - size * 0.15, y - size * 0.1, size * 0.035, "#263238");
+    circle(x + size * 0.15, y - size * 0.1, size * 0.035, "#263238");
+    context.beginPath();
+    context.moveTo(x, y - size * 0.04);
+    context.lineTo(x - size * 0.07, y + size * 0.17);
+    context.lineTo(x + size * 0.07, y + size * 0.17);
+    context.strokeStyle = "#ef8f7c";
+    context.lineWidth = 5;
+    context.stroke();
+    return;
+  }
+  if (word === "KANA") {
+    circle(x, y, size * 0.32, "#fff", "#ff8f00", 4);
+    circle(x + size * 0.25, y - size * 0.25, size * 0.18, "#fff", "#ff8f00", 4);
+    context.fillStyle = "#ffca28";
+    context.beginPath();
+    context.moveTo(x + size * 0.42, y - size * 0.28);
+    context.lineTo(x + size * 0.58, y - size * 0.2);
+    context.lineTo(x + size * 0.42, y - size * 0.13);
+    context.closePath();
+    context.fill();
+    circle(x + size * 0.29, y - size * 0.3, size * 0.025, "#263238");
+    return;
+  }
+
+  context.fillStyle = "#ff8a65";
+  context.beginPath();
+  context.moveTo(x - size * 0.38, y - size * 0.15);
+  context.lineTo(x - size * 0.23, y - size * 0.48);
+  context.lineTo(x - size * 0.08, y - size * 0.2);
+  context.lineTo(x + size * 0.08, y - size * 0.2);
+  context.lineTo(x + size * 0.23, y - size * 0.48);
+  context.lineTo(x + size * 0.38, y - size * 0.15);
+  context.arc(x, y, size * 0.38, 0, Math.PI);
+  context.closePath();
+  context.fill();
+  circle(x - size * 0.14, y, size * 0.04, "#263238");
+  circle(x + size * 0.14, y, size * 0.04, "#263238");
+  context.strokeStyle = "#263238";
+  context.lineWidth = 3;
+  [-0.1, 0.04, 0.18].forEach((offset) => {
+    context.beginPath();
+    context.moveTo(x - size * 0.1, y + size * offset);
+    context.lineTo(x - size * 0.45, y + size * (offset - 0.04));
+    context.moveTo(x + size * 0.1, y + size * offset);
+    context.lineTo(x + size * 0.45, y + size * (offset - 0.04));
+    context.stroke();
   });
 }
 
