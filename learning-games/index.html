@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="et">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Laste õppemängud</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main id="app">
+      <section id="menu" class="menu">
+        <h1>Laste õppemängud</h1>
+        <p>Vali mäng. Mäng avaneb täisekraanil.</p>
+        <div id="game-list" class="game-list"></div>
+      </section>
+      <section id="game-screen" class="game-screen" hidden>
+        <canvas id="game-canvas" aria-label="Õppemäng"></canvas>
+      </section>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

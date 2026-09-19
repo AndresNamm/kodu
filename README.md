@@ -4,26 +4,19 @@ A simple React application that displays a friendly greeting.
 
 ## 🚀 Live Demo
 
-The app is automatically deployed to GitHub Pages: https://andresnamm.github.io/kodu
+The app is deployed to GitHub Pages: https://andres.dataleaper.com
 
-## 🔄 Automated Deployment
+## 🔄 Deployment
 
-This project uses GitHub Actions to automatically deploy to GitHub Pages whenever code is pushed to the `master` branch.
+GitHub Pages serves the root of the `gh-pages` branch. Build and synchronize
+the production files before committing:
 
-### Workflow Features
-- **Automatic triggers**: Deploys on every push to `master`
-- **Manual deployment**: Can be triggered manually via GitHub Actions UI
-- **Build verification**: Validates build output before deployment
-- **Latest actions**: Uses the most recent GitHub Actions versions
-
-### GitHub Pages Setup Requirements
-
-To enable GitHub Pages deployment for this repository:
-
-1. Go to repository **Settings**
-2. Navigate to **Pages** section
-3. Set **Source** to "GitHub Actions"
-4. The workflow will handle the rest automatically
+```bash
+npm run deploy
+git add -A
+git commit
+git push origin gh-pages
+```
 
 ## 🛠️ Local Development
 
@@ -37,7 +30,7 @@ npm start
 # Build for production
 npm run build
 
-# Deploy to GitHub Pages (manual)
+# Build and synchronize GitHub Pages files
 npm run deploy
 ```
 
@@ -60,22 +53,20 @@ python scripts/download_images.py "cute otter" --c 5
 
 ```
 kodu/
-├── .github/
-│   └── workflows/
-│       └── deploy.yml      # GitHub Pages deployment workflow
 ├── public/
-│   └── index.html         # HTML template
+│   └── learning-games/   # Six-game browser application and assets
+├── scripts/
+│   └── sync-pages.mjs    # Copies the production build to the served branch root
 ├── src/
-│   ├── App.js            # Main App component
-│   └── index.js          # React entry point
-└── package.json          # Dependencies and scripts
+│   ├── App.tsx           # Fullscreen game host
+│   └── index.tsx         # React entry point
+└── package.json
 ```
 
 ## 🔧 Technologies
 
 - React 18
 - Create React App
-- GitHub Actions
 - GitHub Pages
 
 ## Laste õppemängud
