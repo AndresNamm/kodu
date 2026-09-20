@@ -51,6 +51,19 @@ export const LONG_READING_WORDS = [
 export const LETTER_WORDS = [...SHORT_READING_WORDS, ...LONG_READING_WORDS];
 export const PICTURE_WORDS = ["KANA", "KASS", "MAJA", "MUNA", "NINA"];
 export const DIRECTION_KEYS = ["8", "2", "4", "6"];
+export const COLOR_OPTIONS = [
+  { id: "red", name: "PUNANE", hex: "#ef4444", speech: "punane.wav" },
+  { id: "blue", name: "SININE", hex: "#2196f3", speech: "sinine.wav" },
+  { id: "green", name: "ROHELINE", hex: "#4caf50", speech: "roheline.wav" },
+  { id: "yellow", name: "KOLLANE", hex: "#ffeb3b", speech: "kollane.wav" },
+  { id: "orange", name: "ORANŽ", hex: "#ff9800", speech: "oranz.wav" },
+  { id: "purple", name: "LILLA", hex: "#9c27b0", speech: "lilla.wav" },
+  { id: "pink", name: "ROOSA", hex: "#ec407a", speech: "roosa.wav" },
+  { id: "black", name: "MUST", hex: "#263238", speech: "must.wav" },
+  { id: "white", name: "VALGE", hex: "#ffffff", speech: "valge.wav" },
+  { id: "brown", name: "PRUUN", hex: "#795548", speech: "pruun.wav" },
+  { id: "gray", name: "HALL", hex: "#9e9e9e", speech: "hall.wav" },
+];
 
 export const MAZES = [
   [
@@ -161,6 +174,7 @@ export function createReadingPrompt(
       target: pickReadingValue(ALLOWED_LETTERS, mistakes, previous, random),
     };
   }
+
   if (level === 2) {
     return {
       type: "syllable",
@@ -201,6 +215,21 @@ export function createReadingPrompt(
     target,
     choices,
     correctIndex: choices.indexOf(target),
+  };
+}
+
+export function createColorPrompt(previousId = "", random = Math.random) {
+  const targets = COLOR_OPTIONS.filter((color) => color.id !== previousId);
+  const target = randomItem(targets.length > 0 ? targets : COLOR_OPTIONS, random);
+  const distractors = shuffleWithRandom(
+    COLOR_OPTIONS.filter((color) => color.id !== target.id),
+    random,
+  ).slice(0, 2);
+  const choices = shuffleWithRandom([target, ...distractors], random);
+  return {
+    target,
+    choices,
+    correctIndex: choices.findIndex((color) => color.id === target.id),
   };
 }
 
@@ -346,6 +375,23 @@ export class ReadingGameState {
       correctInLevel: this.correctInLevel,
       mistakes: this.mistakes,
     };
+  }
+}
+
+export class ColorGameState {
+  constructor({ prompt, random = Math.random } = {}) {
+    this.random = random;
+    this.prompt = prompt ?? createColorPrompt("", this.random);
+  }
+
+  input(key) {
+    if (key?.toLowerCase() === "q") return "exit";
+    if (!["1", "2", "3"].includes(key)) return "wrong";
+    return Number(key) - 1 === this.prompt.correctIndex ? "correct" : "wrong";
+  }
+
+  advance() {
+    this.prompt = createColorPrompt(this.prompt.target.id, this.random);
   }
 }
 

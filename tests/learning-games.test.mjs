@@ -5,6 +5,9 @@ import {
   AddRemoveState,
   ALLOWED_LETTERS,
   BeeFlowerState,
+  COLOR_OPTIONS,
+  ColorGameState,
+  createColorPrompt,
   createReadingPrompt,
   DirectionState,
   LETTER_WORDS,
@@ -136,4 +139,24 @@ test('bee and flower game moves horizontally and reaches a flower', () => {
   assert.equal(state.input('ArrowRight'), 'correct');
   assert.equal(state.flowers, 1);
   assert.equal(state.input('ArrowUp'), 'wrong');
+});
+
+test('color game accepts only the numbered matching color', () => {
+  const state = new ColorGameState({
+    prompt: {
+      target: COLOR_OPTIONS[0],
+      choices: [COLOR_OPTIONS[1], COLOR_OPTIONS[0], COLOR_OPTIONS[2]],
+      correctIndex: 1
+    }
+  });
+  assert.equal(state.input('1'), 'wrong');
+  assert.equal(state.input('2'), 'correct');
+  assert.equal(state.input('q'), 'exit');
+});
+
+test('color prompts contain three distinct colors and avoid immediate repeats', () => {
+  const prompt = createColorPrompt('red', () => 0.25);
+  assert.notEqual(prompt.target.id, 'red');
+  assert.equal(new Set(prompt.choices.map((color) => color.id)).size, 3);
+  assert.equal(prompt.choices[prompt.correctIndex].id, prompt.target.id);
 });

@@ -78,7 +78,8 @@ Rakendus koosneb nüüd ainult uuest kuue täisekraanimängu komplektist:
 - kuueastmeline lugemisõpe: häälikud, silbid, sõnad, puuduv täht ja sõna–pildi sobitamine;
 - mesilase labürint;
 - suundade õppimine eesti keeles;
-- mesilane ja lilled.
+- mesilane ja lilled;
+- eestikeelne värvide õppimine.
 
 Veebimängude lähtekood ja litsentsitud meedia asuvad kaustas
 `public/learning-games/`. Mängukomplekt avaneb aadressil

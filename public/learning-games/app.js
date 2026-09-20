@@ -1,6 +1,7 @@
 import {
   AddRemoveState,
   BeeFlowerState,
+  ColorGameState,
   DIRECTION_KEYS,
   DirectionState,
   MAZES,
@@ -123,6 +124,12 @@ const GAME_DEFINITIONS = [
     description: "Liigu vasakule või paremale ja korja lilli.",
     color: "#ec407a",
   },
+  {
+    id: "colors",
+    title: "7. Värvide õppimine",
+    description: "Kuula värvi nime ja vali kolmest värvipallist õige.",
+    color: "#26a69a",
+  },
 ];
 
 const menu = document.querySelector("#menu");
@@ -138,6 +145,7 @@ let wrongFlash = false;
 let wrongTimer = null;
 let audioContext = null;
 let readingTimers = [];
+let colorPromptTimer = null;
 let activeSpeechAudio = null;
 let resolveActiveSpeech = null;
 let imageDeck = shuffle(IMAGE_NAMES.map((name) => `assets/images/${name}`));
@@ -204,6 +212,7 @@ async function startGame(id) {
   clearTimeout(rewardTimer);
   clearTimeout(wrongTimer);
   clearReadingTimers();
+  clearTimeout(colorPromptTimer);
   stopSpeech();
   reward = null;
   wrongFlash = false;
@@ -222,6 +231,9 @@ async function startGame(id) {
   }
   if (id === "letters") {
     scheduleReadingPrompt(activeGame);
+  }
+  if (id === "colors") {
+    colorPromptTimer = setTimeout(() => speakColor(activeGame), 300);
   }
 }
 
@@ -252,6 +264,9 @@ function createGame(id) {
     placeFlower(state);
     return { id, state };
   }
+  if (id === "colors") {
+    return { id, state: new ColorGameState() };
+  }
   throw new Error(`Unknown game: ${id}`);
 }
 
@@ -259,6 +274,7 @@ async function returnToMenu() {
   clearTimeout(rewardTimer);
   clearTimeout(wrongTimer);
   clearReadingTimers();
+  clearTimeout(colorPromptTimer);
   stopSpeech();
   reward = null;
   activeGame = null;
@@ -286,6 +302,10 @@ function handleKey(rawKey) {
     clearReadingTimers();
     stopSpeech();
     activeGame.readingHighlight = -1;
+  }
+  if (activeGame.id === "colors") {
+    clearTimeout(colorPromptTimer);
+    stopSpeech();
   }
 
   const readingGame = activeGame.id === "letters" ? activeGame : null;
@@ -320,6 +340,12 @@ function handleKey(rawKey) {
         }
       }, 260));
     }
+    if (activeGame?.id === "colors") {
+      const colorGame = activeGame;
+      colorPromptTimer = setTimeout(() => {
+        if (activeGame === colorGame && !reward) speakColor(colorGame);
+      }, 260);
+    }
   }
 }
 
@@ -340,6 +366,16 @@ function handleCorrectAnswer() {
       scheduleReadingPrompt(game);
     });
     playReadingSuccess(game, completedPrompt, finalLetter);
+    return;
+  }
+
+  if (game.id === "colors") {
+    const completedColor = game.state.prompt.target;
+    game.state.advance();
+    showReward(completedColor.name, () => {
+      colorPromptTimer = setTimeout(() => speakColor(game), 250);
+    });
+    playColorSuccess(game, completedColor);
     return;
   }
 
@@ -487,6 +523,17 @@ function speakDirection(key) {
   playFile(`assets/speech/et/${DIRECTION_INFO[key].speech}`);
 }
 
+function speakColor(game) {
+  if (!game || game.id !== "colors") return;
+  return playFile(`assets/speech/colors/${game.state.prompt.target.speech}`);
+}
+
+async function playColorSuccess(game, color) {
+  await playFile(`assets/speech/colors/${color.speech}`);
+  if (activeGame !== game || !reward) return;
+  playGoodSound();
+}
+
 function clearReadingTimers() {
   readingTimers.forEach((timer) => clearTimeout(timer));
   readingTimers = [];
@@ -606,6 +653,7 @@ function render() {
   if (activeGame.id === "maze") drawMazeGame(width, height);
   if (activeGame.id === "directions") drawDirectionGame(width, height);
   if (activeGame.id === "flowers") drawFlowerGame(width, height);
+  if (activeGame.id === "colors") drawColorGame(width, height);
 }
 
 function drawBackground(width, height, sky) {
@@ -935,6 +983,61 @@ function drawFlowerGame(width, height) {
   const span = width * 0.8;
   drawBee(left + state.beeX * span, laneY, Math.min(width, height) * 0.12);
   drawFlower(left + state.flowerX * span, laneY, Math.min(width, height) * 0.085);
+}
+
+function drawColorGame(width, height) {
+  const { prompt } = activeGame.state;
+  text("LEIA VÄRV", width / 2, height * 0.1, Math.min(width, height) * 0.07, "#263238");
+  text(prompt.target.name, width / 2, height * 0.2, Math.min(width, height) * 0.085, "#263238");
+  circle(
+    width / 2,
+    height * 0.31,
+    Math.min(width, height) * 0.075,
+    prompt.target.hex,
+    "#fff",
+    7,
+  );
+
+  const ballRadius = Math.min(width * 0.1, height * 0.16);
+  const gap = width * 0.08;
+  const totalWidth = ballRadius * 6 + gap * 2;
+  const left = (width - totalWidth) / 2 + ballRadius;
+  prompt.choices.forEach((color, index) => {
+    const x = left + index * (ballRadius * 2 + gap);
+    const y = height * 0.58;
+    context.beginPath();
+    context.ellipse(
+      x,
+      y,
+      ballRadius * 0.82,
+      ballRadius,
+      0,
+      0,
+      Math.PI * 2,
+    );
+    context.fillStyle = color.hex;
+    context.fill();
+    context.strokeStyle = color.id === "white" ? "#78909c" : "#fff";
+    context.lineWidth = 7;
+    context.stroke();
+    context.strokeStyle = "#78909c";
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(x, y + ballRadius);
+    context.quadraticCurveTo(
+      x - ballRadius * 0.35,
+      y + ballRadius * 1.25,
+      x,
+      y + ballRadius * 1.5,
+    );
+    context.stroke();
+    drawBadge(
+      x,
+      y + ballRadius * 1.75,
+      ballRadius * 0.72,
+      index + 1,
+    );
+  });
 }
 
 function drawReward(width, height) {
